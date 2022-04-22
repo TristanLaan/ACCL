@@ -208,52 +208,47 @@ public:
                        std::vector<CCLO *> waitfor = {});
 
   template <typename dtype>
-  std::unique_ptr<Buffer<dtype>> create_buffer(dtype *host_buffer,
-                                               size_t length, dataType type,
-                                               unsigned mem_grp) {
+  Buffer<dtype> *create_buffer(dtype *host_buffer, size_t length, dataType type,
+                               unsigned mem_grp) {
     if (sim_mode) {
-      return std::unique_ptr<Buffer<dtype>>(
-          new SimBuffer<dtype>(host_buffer, length, type,
-                               static_cast<SimDevice *>(cclo)->get_context()));
+      return new SimBuffer<dtype>(
+          host_buffer, length, type,
+          static_cast<SimDevice *>(cclo)->get_context());
     } else {
-      return std::unique_ptr<Buffer<dtype>>(new FPGABuffer<dtype>(
-          host_buffer, length, type, device, (xrt::memory_group)mem_grp));
-    }
-    return std::unique_ptr<Buffer<dtype>>(nullptr);
-  }
-
-  template <typename dtype>
-  std::unique_ptr<Buffer<dtype>> create_buffer(size_t length, dataType type,
-                                               unsigned mem_grp) {
-    if (sim_mode) {
-      return std::unique_ptr<Buffer<dtype>>(new SimBuffer<dtype>(
-          length, type, static_cast<SimDevice *>(cclo)->get_context()));
-    } else {
-      return std::unique_ptr<Buffer<dtype>>(new FPGABuffer<dtype>(
-          length, type, device, (xrt::memory_group)mem_grp));
+      return new FPGABuffer<dtype>(host_buffer, length, type, device,
+                                   (xrt::memory_group)mem_grp);
     }
   }
 
   template <typename dtype>
-  std::unique_ptr<Buffer<dtype>>
-  create_buffer(xrt::bo &bo, size_t length, dataType type) {
+  Buffer<dtype> *create_buffer(size_t length, dataType type, unsigned mem_grp) {
     if (sim_mode) {
-      return std::unique_ptr<Buffer<dtype>>(new SimBuffer<dtype>(
-          bo, length, type, static_cast<SimDevice *>(cclo)->get_context()));
+      return new SimBuffer<dtype>(
+          length, type, static_cast<SimDevice *>(cclo)->get_context());
     } else {
-      return std::unique_ptr<Buffer<dtype>>(new FPGABuffer<dtype>(
-          bo, length, type));
+      return new FPGABuffer<dtype>(length, type, device,
+                                   (xrt::memory_group)mem_grp);
     }
   }
 
   template <typename dtype>
-  std::unique_ptr<Buffer<dtype>> create_buffer(dtype *host_buffer,
-                                               size_t length, dataType type) {
+  Buffer<dtype> *create_buffer(xrt::bo &bo, size_t length, dataType type) {
+    if (sim_mode) {
+      return new SimBuffer<dtype>(
+          bo, length, type, static_cast<SimDevice *>(cclo)->get_context());
+    } else {
+      return new FPGABuffer<dtype>(bo, length, type);
+    }
+  }
+
+  template <typename dtype>
+  Buffer<dtype> *create_buffer(dtype *host_buffer, size_t length,
+                               dataType type) {
     return create_buffer(host_buffer, length, type, devicemem);
   }
 
   template <typename dtype>
-  std::unique_ptr<Buffer<dtype>> create_buffer(size_t length, dataType type) {
+  Buffer<dtype> *create_buffer(size_t length, dataType type) {
     return create_buffer<dtype>(length, type, devicemem);
   }
 
