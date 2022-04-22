@@ -147,7 +147,7 @@ public:
 
   void free_buffer() override { return; }
 
-  std::unique_ptr<BaseBuffer> slice(size_t start, size_t end) override {
+  BaseBuffer *slice(size_t start, size_t end) override {
     xrt::bo bo_slice;
 
     if (bo_valid) {
@@ -158,9 +158,9 @@ public:
       bo_slice = _bo;
     }
 
-    return std::unique_ptr<BaseBuffer>(new SimBuffer(
-        &this->_buffer[start], end - start, this->_type, this->zmq_ctx,
-        this->_physical_address + start, bo_slice, _device, bo_valid, true));
+    return new SimBuffer(&this->_buffer[start], end - start, this->_type,
+                         this->zmq_ctx, this->_physical_address + start,
+                         bo_slice, _device, bo_valid, true);
   }
 };
 } // namespace ACCL

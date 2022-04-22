@@ -35,8 +35,8 @@ public:
   void sync_to_device() override {}
   void free_buffer() override {}
 
-  std::unique_ptr<BaseBuffer> slice(size_t start, size_t end) override {
-    return std::unique_ptr<BaseBuffer>(new DummyBuffer());
+  BaseBuffer *slice(size_t start, size_t end) override {
+    return new DummyBuffer();
   }
 };
 

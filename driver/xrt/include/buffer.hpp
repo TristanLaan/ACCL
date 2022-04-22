@@ -120,13 +120,13 @@ public:
   addr_t physical_address() const { return _physical_address; }
 
   /**
-   * Get a slice of the buffer from start to end.
+   * Get a slice of the buffer from start to end. Needs to be deleted after use.
    *
    * @param start           Start of the slice.
    * @param end             End of the slice.
    * @return BaseBuffer     Slice of the buffer from start to end.
    */
-  virtual std::unique_ptr<BaseBuffer> slice(size_t start, size_t end) = 0;
+  virtual BaseBuffer *slice(size_t start, size_t end) = 0;
 
 protected:
   void *_byte_array;

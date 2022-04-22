@@ -46,8 +46,7 @@ public:
   }
 
   FPGABuffer(xrt::bo &bo, addr_t length, dataType type)
-      : Buffer<dtype>(bo.map<dtype *>(), length, type, bo.address()),
-        _bo(bo) {
+      : Buffer<dtype>(bo.map<dtype *>(), length, type, bo.address()), _bo(bo) {
     set_buffer();
   }
 
@@ -99,7 +98,7 @@ public:
 
   void free_buffer() override { return; }
 
-  std::unique_ptr<BaseBuffer> slice(size_t start, size_t end) override {
+  BaseBuffer *slice(size_t start, size_t end) override {
     size_t start_bytes = start * sizeof(dtype);
     size_t end_bytes = end * sizeof(dtype);
 
@@ -108,9 +107,9 @@ public:
       offset_unaligned_buffer = &unaligned_buffer[start];
     }
 
-    return std::unique_ptr<BaseBuffer>(new FPGABuffer(
-        xrt::bo(_bo, end_bytes - start_bytes, start_bytes), end - start,
-        this->_type, this->is_aligned, offset_unaligned_buffer));
+    return new FPGABuffer(xrt::bo(_bo, end_bytes - start_bytes, start_bytes),
+                          end - start, this->_type, this->is_aligned,
+                          offset_unaligned_buffer);
   }
 
 private:

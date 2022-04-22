@@ -360,7 +360,8 @@ CCLO *ACCL::scatter(unsigned int comm_id, BaseBuffer &sendbuf,
   }
 
   if (from_fpga == false && is_root == true) {
-    auto slice = sendbuf.slice(0, count * communicator.get_ranks()->size());
+    auto slice = std::unique_ptr<BaseBuffer>(
+        sendbuf.slice(0, count * communicator.get_ranks()->size()));
     slice->sync_to_device();
   }
 
@@ -378,7 +379,7 @@ CCLO *ACCL::scatter(unsigned int comm_id, BaseBuffer &sendbuf,
   } else {
     handle->wait();
     if (to_fpga == false) {
-      auto slice = recvbuf.slice(0, count);
+      auto slice = std::unique_ptr<BaseBuffer>(recvbuf.slice(0, count));
       slice->sync_from_device();
     }
     check_return_value("scatter");
@@ -418,7 +419,7 @@ CCLO *ACCL::gather(unsigned int comm_id, BaseBuffer &sendbuf,
   }
 
   if (from_fpga == false) {
-    auto slice = sendbuf.slice(0, count);
+    auto slice = std::unique_ptr<BaseBuffer>(sendbuf.slice(0, count));
     slice->sync_to_device();
   }
 
@@ -436,7 +437,8 @@ CCLO *ACCL::gather(unsigned int comm_id, BaseBuffer &sendbuf,
   } else {
     handle->wait();
     if (to_fpga == false && is_root == true) {
-      auto slice = recvbuf.slice(0, count * communicator.get_ranks()->size());
+      auto slice = std::unique_ptr<BaseBuffer>(
+          recvbuf.slice(0, count * communicator.get_ranks()->size()));
       slice->sync_from_device();
     }
     check_return_value("gather");
@@ -474,7 +476,7 @@ CCLO *ACCL::allgather(unsigned int comm_id, BaseBuffer &sendbuf,
   }
 
   if (from_fpga == false) {
-    auto slice = sendbuf.slice(0, count);
+    auto slice = std::unique_ptr<BaseBuffer>(sendbuf.slice(0, count));
     slice->sync_to_device();
   }
 
@@ -491,7 +493,8 @@ CCLO *ACCL::allgather(unsigned int comm_id, BaseBuffer &sendbuf,
   } else {
     handle->wait();
     if (to_fpga == false) {
-      auto slice = recvbuf.slice(0, count * communicator.get_ranks()->size());
+      auto slice = std::unique_ptr<BaseBuffer>(
+          recvbuf.slice(0, count * communicator.get_ranks()->size()));
       slice->sync_from_device();
     }
     check_return_value("allgather");
@@ -522,7 +525,7 @@ CCLO *ACCL::reduce(unsigned int comm_id, BaseBuffer &sendbuf,
   }
 
   if (from_fpga == false) {
-    auto slice = sendbuf.slice(0, count);
+    auto slice = std::unique_ptr<BaseBuffer>(sendbuf.slice(0, count));
     slice->sync_to_device();
   }
 
@@ -541,7 +544,7 @@ CCLO *ACCL::reduce(unsigned int comm_id, BaseBuffer &sendbuf,
   } else {
     handle->wait();
     if (to_fpga == false && is_root == true) {
-      auto slice = recvbuf.slice(0, count);
+      auto slice = std::unique_ptr<BaseBuffer>(recvbuf.slice(0, count));
       slice->sync_from_device();
     }
     check_return_value("reduce");
@@ -570,7 +573,7 @@ CCLO *ACCL::allreduce(unsigned int comm_id, BaseBuffer &sendbuf,
   }
 
   if (from_fpga == false) {
-    auto slice = sendbuf.slice(0, count);
+    auto slice = std::unique_ptr<BaseBuffer>(sendbuf.slice(0, count));
     slice->sync_to_device();
   }
 
@@ -588,7 +591,7 @@ CCLO *ACCL::allreduce(unsigned int comm_id, BaseBuffer &sendbuf,
   } else {
     handle->wait();
     if (to_fpga == false) {
-      auto slice = recvbuf.slice(0, count);
+      auto slice = std::unique_ptr<BaseBuffer>(recvbuf.slice(0, count));
       slice->sync_from_device();
     }
     check_return_value("allreduce");
@@ -617,7 +620,8 @@ CCLO *ACCL::reduce_scatter(unsigned int comm_id, BaseBuffer &sendbuf,
   }
 
   if (from_fpga == false) {
-    auto slice = sendbuf.slice(0, count * communicator.get_ranks()->size());
+    auto slice = std::unique_ptr<BaseBuffer>(
+        sendbuf.slice(0, count * communicator.get_ranks()->size()));
     slice->sync_to_device();
   }
 
@@ -635,7 +639,7 @@ CCLO *ACCL::reduce_scatter(unsigned int comm_id, BaseBuffer &sendbuf,
   } else {
     handle->wait();
     if (to_fpga == false) {
-      auto slice = recvbuf.slice(0, count);
+      auto slice = std::unique_ptr<BaseBuffer>(recvbuf.slice(0, count));
       slice->sync_from_device();
     }
     check_return_value("reduce_scatter");
