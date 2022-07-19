@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+from pathlib import Path
+from typing import Union
+
+try:
+    import pynq.pl_server.xclbin_parser as xclbin_parser
+except ImportError:
+    xclbin_parser = None
+
+
+def extract_xclbin_config(filename: Union[str, Path]):
+    if xclbin_parser is None:
+        print("PYNQ not found on the system, please run `pip3 install pynq`.")
+        exit(1)
+
+    xclbin = xclbin_parser.XclBin(filename)
+    ccl_offload = xclbin.ip_dict['ccl_offload_0']
+    host_ctrl = xclbin.ip_dict['hostctrl_0']
+    hbm0 = xclbin.mem_dict['HBM[0]']
+    print(f'{xclbin.ip_dict.keys()=}\n\n{host_ctrl=}\n\n{ccl_offload=}\n\n{hbm0=}\n\n{xclbin.clock_dict=}')
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='ACCL XCLBIN connectivity extractor')
+    parser.add_argument('xclbin_file', type=Path, metavar='XCLBIN-FILE',
+                        help="ACCL XCLBIN file to extract connectivity from")
+    parser.add_argument('-o', '--output', type=Path, metavar='JSON-FILE',
+                        default=Path('connectivity.json').resolve(),
+                        help="output file to write connectivity layout to; "
+                             "defaults to 'connectivity.json'")
+    args = parser.parse_args()
+    print(args)
+    args.xclbin_file = args.xclbin_file.resolve()
+
+    cfg = extract_xclbin_config(args.xclbin_file)
