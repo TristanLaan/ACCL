@@ -48,6 +48,7 @@ unsigned skipped_tests;
 struct options_t {
   int start_port;
   unsigned int rxbuf_size;
+  unsigned int segment_size;
   unsigned int count;
   unsigned int nruns;
   unsigned int device_index;
@@ -323,6 +324,14 @@ void test_sendrcv_bo(ACCL::ACCL &accl, xrt::device &dev, options_t &options) {
 void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
   std::cout << "Start send recv test..." << std::endl;
   unsigned int count = options.count;
+  unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
+  if (count_bytes > options.segment_size) {
+    std::cout << "Send recv currently doesn't support segmentation. "
+              << "Skipping test." << std::endl;
+    ++skipped_tests;
+    return;
+  }
+
   auto op_buf = accl.create_buffer<float>(count, dataType::float32);
   auto res_buf = accl.create_buffer<float>(count, dataType::float32);
   random_array(op_buf->buffer(), count);
@@ -372,6 +381,14 @@ void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
 void test_sendrcv_stream(ACCL::ACCL &accl, options_t &options) {
   std::cout << "Start streaming send recv test..." << std::endl;
   unsigned int count = options.count;
+  unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
+  if (count_bytes > options.segment_size) {
+    std::cout << "Send recv currently doesn't support segmentation. "
+              << "Skipping test." << std::endl;
+    ++skipped_tests;
+    return;
+  }
+
   auto op_buf = accl.create_buffer<float>(count, dataType::float32);
   auto res_buf = accl.create_buffer<float>(count, dataType::float32);
   random_array(op_buf->buffer(), count);
@@ -417,6 +434,14 @@ void test_sendrcv_stream(ACCL::ACCL &accl, options_t &options) {
 void test_stream_put(ACCL::ACCL &accl, options_t &options) {
   std::cout << "Start stream put test..." << std::endl;
   unsigned int count = options.count;
+  unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
+  if (count_bytes > options.segment_size) {
+    std::cout << "Send recv currently doesn't support segmentation. "
+              << "Skipping test." << std::endl;
+    ++skipped_tests;
+    return;
+  }
+
   auto op_buf = accl.create_buffer<float>(count, dataType::float32);
   auto res_buf = accl.create_buffer<float>(count, dataType::float32);
   random_array(op_buf->buffer(), count);
@@ -458,6 +483,14 @@ void test_stream_put(ACCL::ACCL &accl, options_t &options) {
 void test_sendrcv_compressed(ACCL::ACCL &accl, options_t &options) {
   std::cout << "Start send recv compression test..." << std::endl;
   unsigned int count = options.count;
+  unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
+  if (count_bytes > options.segment_size) {
+    std::cout << "Send recv currently doesn't support segmentation. "
+              << "Skipping test." << std::endl;
+    ++skipped_tests;
+    return;
+  }
+
   auto op_buf = accl.create_buffer<float>(count, dataType::float32);
   auto res_buf = accl.create_buffer<float>(count, dataType::float32);
   random_array(op_buf->buffer(), count);
@@ -1550,12 +1583,12 @@ int start_test(options_t options) {
 
     accl = std::make_unique<ACCL::ACCL>(
         ranks, rank, device, cclo_ip, hostctrl_ip, devicemem, rxbufmem,
-        protocol, 16, options.rxbuf_size, options.rxbuf_size);
+        protocol, 16, options.rxbuf_size, options.segment_size);
   } else {
     protocol = options.udp ? networkProtocol::UDP : networkProtocol::TCP;
     accl = std::make_unique<ACCL::ACCL>(ranks, rank, options.start_port, device,
                                         protocol, 16, options.rxbuf_size,
-                                        options.rxbuf_size);
+                                        options.segment_size);
   }
   if (protocol == networkProtocol::TCP) {
     MPI_Barrier(MPI_COMM_WORLD);
@@ -1729,6 +1762,7 @@ options_t parse_options(int argc, char *argv[]) {
   opts.start_port = start_port_arg.getValue();
   opts.count = count_arg.getValue();
   opts.rxbuf_size = bufsize_arg.getValue() * 1024; // convert to bytes
+  opts.segment_size = opts.rxbuf_size;
   opts.nruns = nruns_arg.getValue();
   opts.debug = debug_arg.getValue();
   opts.hardware = hardware_arg.getValue();
