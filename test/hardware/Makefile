@@ -38,13 +38,12 @@ FW_SOURCES = $(shell find fw -name '*.c') $(shell find fw -name '*.h') $(shell f
 
 #At XACC ETHZ: ETH_IF 0 goes through network switch, 1 is direct connect
 ETH_IF=0
-CMAC_UDP_XO=$(VNX)/Ethernet/_x.$(PLATFORM)/cmac_$(ETH_IF).xo
+CMAC_XO=$(VNX)/Ethernet/_x.$(PLATFORM)/cmac_$(ETH_IF).xo
 UDP_XO=$(VNX)/NetLayers/_x.$(PLATFORM)/networklayer.xo
 TCP_DUMMY_XO=../../kernels/plugins/dummy_tcp_stack/dummy_tcp_stack.xo
 TCP_XO=Vitis_with_100Gbps_TCP-IP/_x.hw.$(XSA)/network_krnl.xo
 TCP_VIVADO_ROOTDIR ?= $$XILINX_VIVADO
 TCP_HLS_ROOTDIR ?= $$XILINX_HLS
-CMAC_TCP_XO=Vitis_with_100Gbps_TCP-IP/_x.hw.$(XSA)/cmac_krnl.xo
 ROCE_XO=HiveNet/build/HiveNet_kernel_0.xo
 XCLBIN=$(BUILD_DIR)/ccl_offload.xclbin
 
@@ -103,7 +102,7 @@ ifeq (udp,$(MODE))
 		HLS_IP_FOLDER  = $(shell readlink -f ./$(NETLAYERHLS)/synthesis_results_HBM)
 	endif
 	CONFIG += --advanced.param compiler.userPostSysLinkOverlayTcl=$(shell pwd)/$(VNX)/Ethernet/post_sys_link.tcl
-	NET_XO = $(CMAC_UDP_XO) $(UDP_XO)
+	NET_XO = $(CMAC_XO) $(UDP_XO)
 	OTHER_XO = $(LOOPBACK_XO)
 	CONFIG += --user_ip_repo_paths $(HLS_IP_FOLDER)
 	CCLO_STACK_TYPE = UDP
@@ -122,14 +121,13 @@ else ifeq (axis3x_vadd,$(MODE))
 	CCLO_STACK_TYPE = TCP
 	CCLO_MB_DEBUG_LEVEL = 2
 else ifeq (tcp, $(MODE))
-	CMAC_TCP_XO=Vitis_with_100Gbps_TCP-IP/_x.hw.$(XSA)/cmac_krnl.xo
-	NET_XO = $(TCP_XO) $(CMAC_TCP_XO)
+	NET_XO = $(TCP_XO) $(CMAC_XO)
 	OTHER_XO = $(LOOPBACK_XO)
 	CONFIG += --advanced.param compiler.userPostSysLinkOverlayTcl=$(shell pwd)/Vitis_with_100Gbps_TCP-IP/scripts/post_sys_link.tcl
 	CONFIG += --user_ip_repo_paths Vitis_with_100Gbps_TCP-IP/build/fpga-network-stack/iprepo
 	CCLO_STACK_TYPE = TCP
 else ifeq (roce, $(MODE))
-	NET_XO = $(ROCE_XO) $(CMAC_UDP_XO)
+	NET_XO = $(ROCE_XO) $(CMAC_XO)
 	OTHER_XO = $(LOOPBACK_XO)
 	CONFIG += --advanced.param compiler.userPostSysLinkOverlayTcl=$(shell pwd)/$(VNX)/Ethernet/post_sys_link.tcl
 	CCLO_STACK_TYPE = UDP
@@ -142,19 +140,15 @@ BUILD_DIR := link_$(MODE)_eth_$(ETH_IF)_debug_$(DEBUG)_$(XSA)
 all: $(XCLBIN)
 
 .PHONY: vnx
-vnx: $(CMAC_UDP_XO) $(UDP_XO)
+vnx: $(CMAC_XO) $(UDP_XO)
 
-$(CMAC_UDP_XO) &:
+$(CMAC_XO) &:
 	git submodule update --init --recursive xup_vitis_network_example
 	$(MAKE) -C xup_vitis_network_example/Ethernet DEVICE=$(PLATFORM) INTERFACE=$(ETH_IF) all
 
 $(UDP_XO):
 	git submodule update --init --recursive xup_vitis_network_example
 	$(MAKE) -C xup_vitis_network_example/NetLayers DEVICE=$(PLATFORM) all
-
-$(CMAC_TCP_XO):
-	git submodule update --init --recursive Vitis_with_100Gbps_TCP-IP
-	$(MAKE) -C Vitis_with_100Gbps_TCP-IP/ cmac_krnl DEVICE=$(PLATFORM) TEMP_DIR=_x.hw.$(XSA)/ XSA=$(XSA)
 
 $(TCP_DUMMY_XO):
 	$(MAKE) -C ../../kernels/plugins/dummy_tcp_stack DEVICE=$(FPGAPART) all
