@@ -184,8 +184,31 @@ void configure_vnx(vnx::CMAC &cmac, vnx::Networklayer &network_layer,
 }
 
 void configure_tcp(BaseBuffer &tx_buf_network, BaseBuffer &rx_buf_network,
-                   xrt::kernel &network_krnl, const std::vector<rank_t> &ranks,
-                   int local_rank) {
+                   vnx::CMAC &cmac, xrt::kernel &network_krnl,
+                   const std::vector<rank_t> &ranks, int local_rank) {
+  std::cout << "Testing TCP link status: ";
+
+  const auto link_status = cmac.link_status();
+
+  if (link_status.at("rx_status")) {
+    std::cout << "Link successful!" << std::endl;
+  }
+
+  std::ostringstream ss;
+
+  ss << "Link interface 1 : {";
+  for (const auto &elem : link_status) {
+    ss << elem.first << ": " << elem.second << ", ";
+  }
+  ss << "}" << std::endl;
+  log_debug(ss.str());
+
+  if (!link_status.at("rx_status")) {
+    throw network_error("No link found.");
+  }
+
+  barrier();
+
   tx_buf_network.sync_to_device();
   rx_buf_network.sync_to_device();
 
@@ -198,7 +221,7 @@ void configure_tcp(BaseBuffer &tx_buf_network, BaseBuffer &rx_buf_network,
 
   uint32_t ip_reg = network_krnl.read_register(0x010);
   uint32_t board_reg = network_krnl.read_register(0x018);
-  std::ostringstream ss;
+  ss = std::ostringstream();
   ss << std::hex << "ip_reg: " << ip_reg << " board_reg IP: " << board_reg
      << std::dec << std::endl;
   log_debug(ss.str());
@@ -355,6 +378,7 @@ initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
 
       configure_vnx(cmac, network_layer, ranks, local_rank);
     } else if (design == acclDesign::TCP) {
+      auto cmac = vnx::CMAC(xrt::ip(device, xclbin_uuid, "cmac_0:{cmac_0}"));
       // Tx and Rx buffers will not be cleaned up properly and leak memory.
       // They need to live at least as long as ACCL so for now this is the best
       // we can do without requiring the users to allocate the buffers manually.
@@ -365,7 +389,7 @@ initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
       auto network_krnl =
           xrt::kernel(device, xclbin_uuid, "network_krnl:{network_krnl_0}",
                       xrt::kernel::cu_access_mode::exclusive);
-      configure_tcp(*tx_buf_network, *rx_buf_network, network_krnl, ranks,
+      configure_tcp(*tx_buf_network, *rx_buf_network, cmac, network_krnl, ranks,
                     local_rank);
     } else if (design == acclDesign::ROCE) {
       auto cmac = roce::CMAC(xrt::ip(device, xclbin_uuid, "cmac_0:{cmac_0}"));
