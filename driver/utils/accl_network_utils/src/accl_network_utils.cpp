@@ -126,11 +126,18 @@ bool check_arp(vnx::Networklayer &network_layer,
 
 namespace accl_network_utils {
 void configure_vnx(vnx::CMAC &cmac, vnx::Networklayer &network_layer,
-                   const std::vector<rank_t> &ranks, int local_rank) {
+                   const std::vector<rank_t> &ranks, int local_rank,
+                   bool rsfec) {
   if (ranks.size() > vnx::max_sockets_size) {
     throw std::runtime_error("Too many ranks. VNX supports up to " +
                              std::to_string(vnx::max_sockets_size) +
                              " sockets.");
+  }
+
+  if (cmac.get_rs_fec() != rsfec) {
+    std::cout << "Turning RS-FEC " << (rsfec ? "on" : "off") << "..."
+              << std::endl;
+    cmac.set_rs_fec(rsfec);
   }
 
   std::cout << "Testing UDP link status: ";
@@ -228,7 +235,8 @@ void configure_tcp(BaseBuffer &tx_buf_network, BaseBuffer &rx_buf_network,
 }
 
 void configure_roce(roce::CMAC &cmac, roce::Hivenet &hivenet,
-                    const std::vector<rank_t> &ranks, int local_rank) {
+                    const std::vector<rank_t> &ranks, int local_rank,
+                    bool rsfec) {
   uint32_t subnet_e = ip_encode(ranks[local_rank].ip) & 0xFFFFFF00;
   std::string subnet = ip_decode(subnet_e);
   uint32_t local_id = hivenet.get_local_id();
@@ -244,7 +252,12 @@ void configure_roce(roce::CMAC &cmac, roce::Hivenet &hivenet,
 
   hivenet.set_ip_subnet(subnet);
   hivenet.set_mac_subnet(0x347844332211);
-  cmac.set_rs_fec(true);
+
+  if (cmac.get_rs_fec() != rsfec) {
+    std::cout << "Turning RS-FEC " << (rsfec ? "on" : "off") << "..."
+              << std::endl;
+    cmac.set_rs_fec(rsfec);
+  }
 
   std::cout << "Testing RoCE link status: ";
   barrier();
@@ -317,10 +330,15 @@ std::vector<rank_t> generate_ranks(bool local, int local_rank, int world_size,
 std::unique_ptr<ACCL::ACCL>
 initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
                 bool simulator, acclDesign design, xrt::device device,
-                fs::path xclbin, int nbufs, addr_t bufsize, addr_t segsize) {
+                fs::path xclbin, int nbufs, addr_t bufsize, addr_t segsize,
+                bool rsfec) {
   std::size_t world_size = ranks.size();
   networkProtocol protocol;
   std::unique_ptr<ACCL::ACCL> accl;
+
+  if (segsize == 0) {
+    segsize = bufsize;
+  }
 
   if (simulator) {
     if (design == acclDesign::UDP) {
@@ -376,7 +394,7 @@ initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
       auto network_layer = vnx::Networklayer(
           xrt::ip(device, xclbin_uuid, "networklayer:{networklayer_0}"));
 
-      configure_vnx(cmac, network_layer, ranks, local_rank);
+      configure_vnx(cmac, network_layer, ranks, local_rank, rsfec);
     } else if (design == acclDesign::TCP) {
       auto cmac = vnx::CMAC(xrt::ip(device, xclbin_uuid, "cmac_0:{cmac_0}"));
       // Tx and Rx buffers will not be cleaned up properly and leak memory.
@@ -397,7 +415,7 @@ initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
           xrt::ip(device, xclbin_uuid, "HiveNet_kernel_0:{networklayer_0}"),
           local_rank);
 
-      configure_roce(cmac, hivenet, ranks, local_rank);
+      configure_roce(cmac, hivenet, ranks, local_rank, rsfec);
     }
 
     accl = std::make_unique<ACCL::ACCL>(ranks, local_rank, device, cclo_ip,
