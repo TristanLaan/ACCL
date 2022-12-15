@@ -1503,79 +1503,79 @@ int start_test(options_t options) {
 
   // barrier here to make sure all the devices are configured before testing
   MPI_Barrier(MPI_COMM_WORLD);
-  accl->nop();
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_barrier(*accl);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_copy(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_copy_stream(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_copy_p2p(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_combine_sum(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_combine_max(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
+  // accl->nop();
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_barrier(*accl);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_copy(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // // test_copy_stream(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_copy_p2p(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_combine_sum(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_combine_max(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
   test_sendrcv(*accl, options);
   MPI_Barrier(MPI_COMM_WORLD);
-  test_sendrcv_stream(*accl, options);
-  if (options.test_xrt_simulator) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_sendrcv_bo(*accl, device, options);
-  } else {
-    std::cout << "Skipping xrt::bo test. We are not running on hardware and "
-                 "XCL emulation is disabled. Make sure XILINX_VITIS and "
-                 "XCL_EMULATION_MODE are set."
-              << std::endl;
-    ++skipped_tests;
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_sendrcv_compressed(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_stream_put(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_allgather(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_allgather_compressed(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_allreduce(*accl, options, reduceFunction::SUM);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_allreduce_compressed(*accl, options, reduceFunction::SUM);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_reduce_scatter(*accl, options, reduceFunction::SUM);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_reduce_scatter_compressed(*accl, options, reduceFunction::SUM);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_multicomm(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
-  test_allgather_comms(*accl, options);
-  MPI_Barrier(MPI_COMM_WORLD);
+  // test_sendrcv_stream(*accl, options);
+  // if (options.test_xrt_simulator) {
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_sendrcv_bo(*accl, device, options);
+  // } else {
+  //   std::cout << "Skipping xrt::bo test. We are not running on hardware and "
+  //                "XCL emulation is disabled. Make sure XILINX_VITIS and "
+  //                "XCL_EMULATION_MODE are set."
+  //             << std::endl;
+  //   ++skipped_tests;
+  // }
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_sendrcv_compressed(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // // test_stream_put(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_allgather(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_allgather_compressed(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_allreduce(*accl, options, reduceFunction::SUM);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_allreduce_compressed(*accl, options, reduceFunction::SUM);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_reduce_scatter(*accl, options, reduceFunction::SUM);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_reduce_scatter_compressed(*accl, options, reduceFunction::SUM);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_multicomm(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // test_allgather_comms(*accl, options);
+  // MPI_Barrier(MPI_COMM_WORLD);
 
-  for (int root = 0; root < size; ++root) {
-    test_bcast(*accl, options, root);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_bcast_compressed(*accl, options, root);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_scatter(*accl, options, root);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_scatter_compressed(*accl, options, root);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_gather(*accl, options, root);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_gather_compressed(*accl, options, root);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_reduce(*accl, options, root, reduceFunction::SUM);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_reduce_compressed(*accl, options, root, reduceFunction::SUM);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_reduce_stream2mem(*accl, options, root, reduceFunction::SUM);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_reduce_mem2stream(*accl, options, root, reduceFunction::SUM);
-    MPI_Barrier(MPI_COMM_WORLD);
-    test_reduce_stream2stream(*accl, options, root, reduceFunction::SUM);
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
+  // for (int root = 0; root < size; ++root) {
+  //   test_bcast(*accl, options, root);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_bcast_compressed(*accl, options, root);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_scatter(*accl, options, root);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_scatter_compressed(*accl, options, root);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_gather(*accl, options, root);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_gather_compressed(*accl, options, root);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_reduce(*accl, options, root, reduceFunction::SUM);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   test_reduce_compressed(*accl, options, root, reduceFunction::SUM);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   // test_reduce_stream2mem(*accl, options, root, reduceFunction::SUM);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   // test_reduce_mem2stream(*accl, options, root, reduceFunction::SUM);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  //   // test_reduce_stream2stream(*accl, options, root, reduceFunction::SUM);
+  //   MPI_Barrier(MPI_COMM_WORLD);
+  // }
 
   std::cout << failed_tests << " tests failed on rank " << rank;
   if (skipped_tests > 0) {
