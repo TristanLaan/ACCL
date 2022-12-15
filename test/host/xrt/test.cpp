@@ -344,15 +344,18 @@ void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
   int next_rank = (rank + 1) % size;
   int prev_rank = (rank + size - 1) % size;
 
-  test_debug("Sending data on " + std::to_string(rank) + " to " +
+  for (int i=0;i<2000;i++) {
+    test_debug("Sending data on " + std::to_string(rank) + " to " +
                  std::to_string(next_rank) + "...",
              options);
-  accl.send(*op_buf, count, next_rank, 0);
+    accl.send(*op_buf, count, next_rank, 0);
 
-  test_debug("Receiving data on " + std::to_string(rank) + " from " +
+    test_debug("Receiving data on " + std::to_string(rank) + " from " +
                  std::to_string(prev_rank) + "...",
              options);
-  accl.recv(*res_buf, count, prev_rank, 0);
+    accl.recv(*res_buf, count, prev_rank, 0);
+    // std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
 
   test_debug("Sending data on " + std::to_string(rank) + " to " +
                  std::to_string(prev_rank) + "...",
