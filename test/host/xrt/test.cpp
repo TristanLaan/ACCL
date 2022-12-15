@@ -330,7 +330,7 @@ void test_sendrcv_bo(ACCL::ACCL &accl, xrt::device &dev, options_t &options) {
 void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
   std::cout << "Start send recv test..." << std::endl;
   unsigned int count = options.count;
-  unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
+  unsigned int count_bytes = count * dataTypeSize.at(dataType::float32) / 8;
   if (count_bytes > options.segment_size) {
     std::cout << "Send recv currently doesn't support segmentation. "
               << "Skipping test." << std::endl;
@@ -344,23 +344,24 @@ void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
   int next_rank = (rank + 1) % size;
   int prev_rank = (rank + size - 1) % size;
 
-  for (int i=0;i<2000;i++) {
+  op_buf->sync_to_device();
+  for (int i=0;i<options.nruns;i++) {
     test_debug("Sending data on " + std::to_string(rank) + " to " +
                  std::to_string(next_rank) + "...",
              options);
-    accl.send(*op_buf, count, next_rank, 0);
+    accl.send(*op_buf, count, next_rank, 0, GLOBAL_COMM, true);
 
     test_debug("Receiving data on " + std::to_string(rank) + " from " +
                  std::to_string(prev_rank) + "...",
              options);
-    accl.recv(*res_buf, count, prev_rank, 0);
+    accl.recv(*res_buf, count, prev_rank, 0, GLOBAL_COMM, true);
     // std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 
   test_debug("Sending data on " + std::to_string(rank) + " to " +
                  std::to_string(prev_rank) + "...",
              options);
-  accl.send(*res_buf, count, prev_rank, 1);
+  accl.send(*res_buf, count, prev_rank, 1, GLOBAL_COMM, true);
 
   test_debug("Receiving data on " + std::to_string(rank) + " from " +
                  std::to_string(next_rank) + "...",
