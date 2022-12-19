@@ -20,8 +20,8 @@
 #include <accl_network_utils.hpp>
 #include <cstdlib>
 #include <experimental/xrt_ip.h>
-#include <functional>
 #include <fstream>
+#include <functional>
 #include <json/json.h>
 #include <mpi.h>
 #include <random>
@@ -56,6 +56,7 @@ struct options_t {
   bool axis3;
   bool udp;
   bool tcp;
+  bool roce;
   bool return_error;
   bool rsfec;
   std::string xclbin;
@@ -66,6 +67,14 @@ void test_debug(std::string message, options_t &options) {
   if (options.debug) {
     std::cerr << message << std::endl;
   }
+}
+
+template <typename T>
+void report_incorrect_item(int idx, T res, T ref, options_t &options) {
+  test_debug(std::to_string(idx + 1) + "th item is incorrect! (" +
+                 std::to_string(res) + " != " + std::to_string(ref) + ")" +
+                 "\n",
+             options);
 }
 
 void check_usage(int argc, char *argv[]) {}
@@ -109,10 +118,7 @@ void test_copy(ACCL::ACCL &accl, options_t &options) {
     float ref = (*op_buf)[i];
     float res = (*res_buf)[i];
     if (res != ref) {
-      std::cout << i + 1
-                << "th item is incorrect! (" + std::to_string(res) +
-                       " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -140,10 +146,7 @@ void test_copy_stream(ACCL::ACCL &accl, options_t &options) {
     float ref = (*op_buf)[i];
     float res = (*res_buf)[i];
     if (res != ref) {
-      std::cout << i + 1
-                << "th item is incorrect! (" + std::to_string(res) +
-                       " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -177,10 +180,7 @@ void test_copy_p2p(ACCL::ACCL &accl, options_t &options) {
     float ref = (*op_buf)[i];
     float res = (*p2p_buf)[i];
     if (res != ref) {
-      std::cout << i + 1
-                << "th item is incorrect! (" + std::to_string(res) +
-                       " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -207,10 +207,7 @@ void test_combine_sum(ACCL::ACCL &accl, options_t &options) {
     float ref = (*op_buf1)[i] + (*op_buf2)[i];
     float res = (*res_buf)[i];
     if (res != ref) {
-      std::cout << i + 1
-                << "th item is incorrect! (" + std::to_string(res) +
-                       " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -237,10 +234,7 @@ void test_combine_max(ACCL::ACCL &accl, options_t &options) {
     float ref = ((*op_buf1)[i] > (*op_buf2)[i]) ? (*op_buf1)[i] : (*op_buf2)[i];
     float res = (*res_buf)[i];
     if (res != ref) {
-      std::cout << i + 1
-                << "th item is incorrect! (" + std::to_string(res) +
-                       " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -309,9 +303,7 @@ void test_sendrcv_bo(ACCL::ACCL &accl, xrt::device &dev, options_t &options) {
     float ref = validation_data[i];
     float res = data[i];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -373,9 +365,7 @@ void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -426,9 +416,7 @@ void test_sendrcv_stream(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -475,9 +463,7 @@ void test_stream_put(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -525,9 +511,7 @@ void test_sendrcv_compressed(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i];
     if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -548,9 +532,7 @@ void test_sendrcv_compressed(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i];
     if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -587,10 +569,7 @@ void test_bcast(ACCL::ACCL &accl, options_t &options, int root) {
       float res = (*res_buf)[i];
       float ref = (*op_buf)[i];
       if (res != ref) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -631,10 +610,7 @@ void test_bcast_compressed(ACCL::ACCL &accl, options_t &options, int root) {
       float res = (*res_buf)[i];
       float ref = (*op_buf)[i];
       if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -672,9 +648,7 @@ void test_scatter(ACCL::ACCL &accl, options_t &options, int root) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i + rank * count];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -713,9 +687,7 @@ void test_scatter_compressed(ACCL::ACCL &accl, options_t &options, int root) {
     float res = (*res_buf)[i];
     float ref = (*op_buf)[i + rank * count];
     if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -759,10 +731,7 @@ void test_gather(ACCL::ACCL &accl, options_t &options, int root) {
       float res = (*res_buf)[i];
       float ref = host_op_buf.get()[i];
       if (res != ref) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -809,10 +778,7 @@ void test_gather_compressed(ACCL::ACCL &accl, options_t &options, int root) {
       float res = (*res_buf)[i];
       float ref = host_op_buf.get()[i];
       if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -850,9 +816,7 @@ void test_allgather(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = host_op_buf.get()[i];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -890,9 +854,7 @@ void test_allgather_compressed(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = host_op_buf.get()[i];
     if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -964,9 +926,7 @@ void test_allgather_comms(ACCL::ACCL &accl, options_t &options) {
       ref = 0.0;
     }
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -1019,10 +979,7 @@ void test_multicomm(ACCL::ACCL &accl, options_t &options) {
       float res = (*res_buf)[i];
       float ref = host_op_buf.get()[i];
       if (res != ref) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -1041,9 +998,7 @@ void test_multicomm(ACCL::ACCL &accl, options_t &options) {
     float res = (*res_buf)[i];
     float ref = 3 * host_op_buf.get()[i];
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -1085,10 +1040,7 @@ void test_reduce(ACCL::ACCL &accl, options_t &options, int root,
       float ref = (*op_buf)[i] * size;
 
       if (res != ref) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -1133,10 +1085,7 @@ void test_reduce_compressed(ACCL::ACCL &accl, options_t &options, int root,
       float ref = (*op_buf)[i] * size;
 
       if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -1151,7 +1100,7 @@ void test_reduce_compressed(ACCL::ACCL &accl, options_t &options, int root,
 }
 
 void test_reduce_stream2mem(ACCL::ACCL &accl, options_t &options, int root,
-                 reduceFunction function) {
+                            reduceFunction function) {
   std::cout << "Start stream to mem reduce test..." << std::endl;
   unsigned int count = options.count;
   unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
@@ -1179,10 +1128,7 @@ void test_reduce_stream2mem(ACCL::ACCL &accl, options_t &options, int root,
       float ref = (*op_buf)[i] * size;
 
       if (res != ref) {
-        std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                         std::to_string(res) + " != " + std::to_string(ref) +
-                         ")"
-                  << std::endl;
+        report_incorrect_item<float>(i, res, ref, options);
         errors += 1;
       }
     }
@@ -1197,7 +1143,7 @@ void test_reduce_stream2mem(ACCL::ACCL &accl, options_t &options, int root,
 }
 
 void test_reduce_mem2stream(ACCL::ACCL &accl, options_t &options, int root,
-                 reduceFunction function) {
+                            reduceFunction function) {
   std::cout << "Start mem to stream reduce test..." << std::endl;
   unsigned int count = options.count;
   unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
@@ -1220,7 +1166,8 @@ void test_reduce_mem2stream(ACCL::ACCL &accl, options_t &options, int root,
   if (rank == root) {
     int errors = 0;
 
-    test_debug("Unloading stream on rank" + std::to_string(rank) + "...", options);
+    test_debug("Unloading stream on rank" + std::to_string(rank) + "...",
+               options);
     accl.copy_from_stream(*res_buf, count, false);
 
     for (unsigned int i = 0; i < count; ++i) {
@@ -1246,7 +1193,7 @@ void test_reduce_mem2stream(ACCL::ACCL &accl, options_t &options, int root,
 }
 
 void test_reduce_stream2stream(ACCL::ACCL &accl, options_t &options, int root,
-                 reduceFunction function) {
+                               reduceFunction function) {
   std::cout << "Start stream to stream reduce test..." << std::endl;
   unsigned int count = options.count;
   unsigned int count_bytes = count * dataTypeSize.at(dataType::float32);
@@ -1271,7 +1218,8 @@ void test_reduce_stream2stream(ACCL::ACCL &accl, options_t &options, int root,
   if (rank == root) {
     int errors = 0;
 
-    test_debug("Unloading stream on rank" + std::to_string(rank) + "...", options);
+    test_debug("Unloading stream on rank" + std::to_string(rank) + "...",
+               options);
     accl.copy_from_stream(*res_buf, count, false);
 
     for (unsigned int i = 0; i < count; ++i) {
@@ -1329,9 +1277,7 @@ void test_reduce_scatter(ACCL::ACCL &accl, options_t &options,
     float ref = (*op_buf)[i + rank * count] * size;
 
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -1378,9 +1324,7 @@ void test_reduce_scatter_compressed(ACCL::ACCL &accl, options_t &options,
     float ref = (*op_buf)[i + rank * count] * size;
 
     if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -1413,9 +1357,7 @@ void test_allreduce(ACCL::ACCL &accl, options_t &options,
     float ref = (*op_buf)[i] * size;
 
     if (res != ref) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -1449,9 +1391,7 @@ void test_allreduce_compressed(ACCL::ACCL &accl, options_t &options,
     float ref = (*op_buf)[i] * size;
 
     if (!is_close(res, ref, FLOAT16RTOL, FLOAT16ATOL)) {
-      std::cout << std::to_string(i + 1) + "th item is incorrect! (" +
-                       std::to_string(res) + " != " + std::to_string(ref) + ")"
-                << std::endl;
+      report_incorrect_item<float>(i, res, ref, options);
       errors += 1;
     }
   }
@@ -1489,6 +1429,8 @@ int start_test(options_t options) {
     design = acclDesign::UDP;
   } else if (options.tcp) {
     design = acclDesign::TCP;
+  } else if (options.roce) {
+    design = acclDesign::ROCE;
   }
 
   xrt::device device;
@@ -1616,13 +1558,12 @@ options_t parse_options(int argc, char *argv[]) {
       "p", "start-port", "Start of range of ports usable for sim", false, 5500,
       "positive integer");
   cmd.add(start_port_arg);
-  TCLAP::ValueArg<unsigned int> count_arg("s", "count",
-                                          "How many items per test",
-                                          false, 16, "positive integer");
+  TCLAP::ValueArg<unsigned int> count_arg(
+      "s", "count", "How many items per test", false, 16, "positive integer");
   cmd.add(count_arg);
   TCLAP::ValueArg<unsigned int> bufsize_arg("b", "rxbuf-size",
-                                        "How many KB per RX buffer", false, 1,
-                                        "positive integer");
+                                            "How many KB per RX buffer", false,
+                                            1, "positive integer");
   cmd.add(bufsize_arg);
   TCLAP::SwitchArg debug_arg("d", "debug", "Enable debug mode", cmd, false);
   TCLAP::SwitchArg hardware_arg("f", "hardware", "enable hardware mode", cmd,
@@ -1631,6 +1572,7 @@ options_t parse_options(int argc, char *argv[]) {
                              false);
   TCLAP::SwitchArg udp_arg("u", "udp", "Use UDP hardware setup", cmd, false);
   TCLAP::SwitchArg tcp_arg("t", "tcp", "Use TCP hardware setup", cmd, false);
+  TCLAP::SwitchArg roce_arg("r", "roce", "Use RoCE hardware setup", cmd, false);
   TCLAP::ValueArg<std::string> xclbin_arg(
       "x", "xclbin", "xclbin of accl driver if hardware mode is used", false,
       "accl.xclbin", "file");
@@ -1639,9 +1581,9 @@ options_t parse_options(int argc, char *argv[]) {
       "i", "device-index", "device index of FPGA if hardware mode is used",
       false, 0, "positive integer");
   cmd.add(device_index_arg);
-  TCLAP::ValueArg<std::string> config_arg(
-      "c", "config", "Config file containing IP mapping",
-      false, "", "JSON file");
+  TCLAP::ValueArg<std::string> config_arg("c", "config",
+                                          "Config file containing IP mapping",
+                                          false, "", "JSON file");
   cmd.add(config_arg);
   TCLAP::SwitchArg rsfec_arg("", "rsfec", "Enables RS-FEC in CMAC.", cmd,
                              false);
@@ -1652,9 +1594,11 @@ options_t parse_options(int argc, char *argv[]) {
   try {
     cmd.parse(argc, argv);
     if (hardware_arg.getValue()) {
-      if (axis3_arg.getValue() + udp_arg.getValue() + tcp_arg.getValue() != 1) {
+      if (axis3_arg.getValue() + udp_arg.getValue() + tcp_arg.getValue() +
+              roce_arg.getValue() !=
+          1) {
         throw std::runtime_error("When using hardware, specify one of axis3, "
-                                 "tcp, or udp mode, but not both.");
+                                 "tcp, udp, or roce mode, but not both.");
       }
     }
   } catch (std::exception &e) {
@@ -1677,6 +1621,7 @@ options_t parse_options(int argc, char *argv[]) {
   opts.axis3 = axis3_arg.getValue();
   opts.udp = udp_arg.getValue();
   opts.tcp = tcp_arg.getValue();
+  opts.roce = roce_arg.getValue();
   opts.device_index = device_index_arg.getValue();
   opts.xclbin = xclbin_arg.getValue();
   opts.test_xrt_simulator = xrt_simulator_ready(opts);
