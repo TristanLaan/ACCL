@@ -319,6 +319,37 @@ void test_sendrcv_bo(ACCL::ACCL &accl, xrt::device &dev, options_t &options) {
   std::free(validation_data);
 }
 
+inline void dump_cmac_stats(options_t &options) {
+  auto device = xrt::device(options.device_index);
+  auto uuid = device.get_xclbin_uuid();
+  auto cmac = vnx::CMAC(xrt::ip(device, uuid, "cmac_0:{cmac_0}"));
+  auto network_layer = vnx::Networklayer(
+    xrt::ip(device, uuid, "networklayer:{networklayer_0}"));
+
+  std::ostringstream ss;
+
+  auto stats = cmac.statistics(true);
+  ss << "CMAC stats:" << std::endl;
+  ss << "Cycle count: " << stats.cycle_count << std::endl;
+  ss << "Tx:" << std::endl;
+  for (auto &item : stats.tx) {
+    ss << item.first << ": " << item.second << std::endl;
+  }
+  ss << "Rx:" << std::endl;
+  for (auto &item : stats.rx) {
+    ss << item.first << ": " << item.second << std::endl;
+  }
+  ss << std::endl;
+
+  ss << "Network Layer stats:" << std::endl;
+  std::cout << ss.str();
+  std::cout.flush();
+  network_layer.get_udp_out_pkts();
+  network_layer.get_udp_in_pkts();
+  network_layer.get_udp_app_out_pkts();
+  network_layer.get_udp_app_in_pkts();
+}
+
 void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
   std::cout << "Start send recv test..." << std::endl;
   unsigned int count = options.count;
@@ -337,16 +368,32 @@ void test_sendrcv(ACCL::ACCL &accl, options_t &options) {
   int prev_rank = (rank + size - 1) % size;
 
   op_buf->sync_to_device();
-  for (int i=0;i<options.nruns;i++) {
+  for (unsigned int i=0; i < options.nruns; i++) {
     test_debug("Sending data on " + std::to_string(rank) + " to " +
                  std::to_string(next_rank) + "...",
              options);
-    accl.send(*op_buf, count, next_rank, 0, GLOBAL_COMM, true);
+    auto ref_send = accl.send(*op_buf, count, next_rank, 0, GLOBAL_COMM, true, dataType::none, true);
+
+    auto send_status = ref_send->wait(std::chrono::milliseconds(2000));
+
+    if (send_status == CCLO::timeout && options.udp) {
+      dump_cmac_stats(options);
+    }
+
+    ref_send->wait();
 
     test_debug("Receiving data on " + std::to_string(rank) + " from " +
                  std::to_string(prev_rank) + "...",
              options);
-    accl.recv(*res_buf, count, prev_rank, 0, GLOBAL_COMM, true);
+    auto ref_recv = accl.recv(*res_buf, count, prev_rank, 0, GLOBAL_COMM, true, dataType::none, true);
+
+    auto recv_status = ref_recv->wait(std::chrono::milliseconds(2000));
+
+    if (recv_status == CCLO::timeout && options.udp) {
+      dump_cmac_stats(options);
+    }
+
+    ref_recv->wait();
     // std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 
