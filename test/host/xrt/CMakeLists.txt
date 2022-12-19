@@ -44,4 +44,4 @@ add_executable(test test.cpp)
 target_include_directories(test PUBLIC ${MPI_CXX_INCLUDE_PATH})
 # Explicitely link against vnx and network_roce_v2 because CMake doesn't support nested object libraries
 # https://stackoverflow.com/a/71040950
-target_link_libraries(test PUBLIC MPI::MPI_CXX accl_network_utils vnx network_roce_v2)
+target_link_libraries(test PUBLIC MPI::MPI_CXX accl_network_utils vnx network_roce_v2 uuid)

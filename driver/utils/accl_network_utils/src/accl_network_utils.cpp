@@ -408,4 +408,108 @@ initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
 
   return accl;
 }
+
+std::unique_ptr<ACCL::ACCL>
+initialize_accl(const std::vector<rank_t> &ranks, int local_rank,
+                bool simulator, acclDesign design, xrt::device &device,
+                xrt::uuid &xclbin_uuid, int nbufs, addr_t bufsize,
+                addr_t segsize, bool rsfec) {
+  std::size_t world_size = ranks.size();
+  networkProtocol protocol;
+  std::unique_ptr<ACCL::ACCL> accl;
+
+  if (segsize == 0) {
+    segsize = bufsize;
+  }
+
+  if (simulator) {
+    if (design == acclDesign::UDP) {
+      protocol = networkProtocol::UDP;
+    } else {
+      protocol = networkProtocol::TCP;
+    }
+
+    accl =
+        std::make_unique<ACCL::ACCL>(ranks, local_rank, ranks[0].port, device,
+                                     protocol, nbufs, bufsize, segsize);
+  } else {
+    int devicemem;
+    std::vector<int> rxbufmem;
+    int networkmem;
+
+    std::string cclo_id;
+    if (design == acclDesign::AXIS3x) {
+      cclo_id = std::to_string(local_rank);
+    } else {
+      cclo_id = "0";
+    }
+
+    auto cclo_ip = xrt::ip(device, xclbin_uuid,
+                           "ccl_offload:{ccl_offload_" + cclo_id + "}");
+    auto hostctrl_ip = xrt::kernel(device, xclbin_uuid,
+                                   "hostctrl:{hostctrl_" + cclo_id + "_0}",
+                                   xrt::kernel::cu_access_mode::exclusive);
+
+    if (design == acclDesign::AXIS3x) {
+      devicemem = local_rank * 6;
+      rxbufmem = {local_rank * 6 + 1};
+      networkmem = local_rank * 6 + 2;
+    } else if (design == acclDesign::ROCE) {
+      devicemem = 3;
+      rxbufmem = {4};
+      networkmem = 6;
+    } else {
+      devicemem = 0;
+      rxbufmem = {1};
+      networkmem = 6;
+    }
+
+    if (design == acclDesign::UDP || design == acclDesign::AXIS3x) {
+      protocol = networkProtocol::UDP;
+    } else {
+      protocol = networkProtocol::TCP;
+    }
+
+    if (design == acclDesign::UDP) {
+      auto cmac = vnx::CMAC(xrt::ip(device, xclbin_uuid, "cmac_0:{cmac_0}"));
+      auto network_layer = vnx::Networklayer(
+          xrt::ip(device, xclbin_uuid, "networklayer:{networklayer_0}"));
+
+      configure_vnx(cmac, network_layer, ranks, local_rank, rsfec);
+    } else if (design == acclDesign::TCP) {
+      // Tx and Rx buffers will not be cleaned up properly and leak memory.
+      // They need to live at least as long as ACCL so for now this is the best
+      // we can do without requiring the users to allocate the buffers manually.
+      auto tx_buf_network = new FPGABuffer<int8_t>(
+          64 * 1024 * 1024, dataType::int8, device, networkmem);
+      auto rx_buf_network = new FPGABuffer<int8_t>(
+          64 * 1024 * 1024, dataType::int8, device, networkmem);
+      auto network_krnl =
+          xrt::kernel(device, xclbin_uuid, "network_krnl:{network_krnl_0}",
+                      xrt::kernel::cu_access_mode::exclusive);
+      configure_tcp(*tx_buf_network, *rx_buf_network, network_krnl, ranks,
+                    local_rank);
+    } else if (design == acclDesign::ROCE) {
+      auto cmac = roce::CMAC(xrt::ip(device, xclbin_uuid, "cmac_0:{cmac_0}"));
+      auto hivenet = roce::Hivenet(
+          xrt::ip(device, xclbin_uuid, "HiveNet_kernel_0:{networklayer_0}"),
+          local_rank);
+
+      configure_roce(cmac, hivenet, ranks, local_rank, rsfec);
+    }
+
+    accl = std::make_unique<ACCL::ACCL>(ranks, local_rank, device, cclo_ip,
+                                        hostctrl_ip, devicemem, rxbufmem,
+                                        protocol, nbufs, bufsize, segsize);
+  }
+
+  if (protocol == networkProtocol::TCP) {
+    barrier();
+    accl->open_port();
+    pause_barrier();
+    accl->open_con();
+  }
+
+  return accl;
+}
 } // namespace accl_network_utils

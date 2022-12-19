@@ -42,6 +42,8 @@ using namespace accl_network_utils;
 int rank, size;
 unsigned failed_tests;
 unsigned skipped_tests;
+xrt::device device;
+xrt::uuid xclbin_uuid;
 
 struct options_t {
   int start_port;
@@ -320,11 +322,9 @@ void test_sendrcv_bo(ACCL::ACCL &accl, xrt::device &dev, options_t &options) {
 }
 
 inline void dump_cmac_stats(options_t &options) {
-  auto device = xrt::device(options.device_index);
-  auto uuid = device.get_xclbin_uuid();
-  auto cmac = vnx::CMAC(xrt::ip(device, uuid, "cmac_0:{cmac_0}"));
+  auto cmac = vnx::CMAC(xrt::ip(device, xclbin_uuid, "cmac_0:{cmac_0}"));
   auto network_layer = vnx::Networklayer(
-    xrt::ip(device, uuid, "networklayer:{networklayer_0}"));
+    xrt::ip(device, xclbin_uuid, "networklayer:{networklayer_0}"));
 
   std::ostringstream ss;
 
@@ -1480,13 +1480,13 @@ int start_test(options_t options) {
     design = acclDesign::ROCE;
   }
 
-  xrt::device device;
   if (options.hardware || options.test_xrt_simulator) {
     device = xrt::device(options.device_index);
+    xclbin_uuid = device.load_xclbin(options.xclbin);
   }
 
   std::unique_ptr<ACCL::ACCL> accl = initialize_accl(
-      ranks, rank, !options.hardware, design, device, options.xclbin, 16,
+      ranks, rank, !options.hardware, design, device, xclbin_uuid, 16,
       options.rxbuf_size, options.segment_size, options.rsfec);
 
   accl->set_timeout(1e6);
